@@ -1,0 +1,5 @@
+# AutoHotkey и cmd ожидают CRLF / AutoHotkey and cmd expect CRLF
+*.ahk text eol=crlf
+*.bat text eol=crlf
+*.md  text eol=lf
+* linguist-detectable=false
