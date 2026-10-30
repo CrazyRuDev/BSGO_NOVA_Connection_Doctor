@@ -20,9 +20,10 @@ if !A_IsAdmin {
 #Include "%A_ScriptDir%\lib\scan.ahk"
 #Include "%A_ScriptDir%\lib\ingame.ahk"
 
-global APP_VERSION := "0.6"
+global APP_VERSION := "0.7"
 global ReportsDir := A_ScriptDir "\reports"
 global Busy := false
+global ListsNote := ""
 
 LoadGame()
 LoadZapret()
@@ -125,6 +126,8 @@ DiagClick(*) {
         MsgBox(T("close_game_first"), , "Icon!")
         return
     }
+    if !CheckZapretLists()
+        return
     Busy := true
     BtnDiag.Enabled := false
     OutBox.Value := ""
@@ -161,15 +164,57 @@ ScanClick(*) {
     smart := Cfg("scan", "mode", "smart") = "smart"
     dlg := Gui("+Owner" MainGui.Hwnd " +AlwaysOnTop", T("scan_dialog_title"))
     dlg.SetFont("s9", "Segoe UI")
+    ; текст-описание между переключателями разрывает их группу, поэтому взаимное выключение — вручную
     radioSmart := dlg.AddRadio("w470" (smart ? " Checked" : ""), T("mode_smart"))
-    dlg.AddText("xp+18 w450 cGray", T("smart_desc"))
-    dlg.AddRadio("xm w470" (smart ? "" : " Checked"), T("mode_full"))
-    dlg.AddText("xp+18 w450 cGray", T("full_desc"))
+    dlg.AddText("xp+18 w450 h32 cGray", T("smart_desc"))
+    radioFull := dlg.AddRadio("xm w470" (smart ? "" : " Checked"), T("mode_full"))
+    dlg.AddText("xp+18 w450 h32 cGray", T("full_desc"))
+    radioSmart.OnEvent("Click", (*) => radioFull.Value := 0)
+    radioFull.OnEvent("Click", (*) => radioSmart.Value := 0)
     selText := dlg.AddText("xm y+12 w300", SelectionText())
     dlg.AddButton("x+8 yp-4 w160", T("btn_pick_strats")).OnEvent("Click", PickFromDialog.Bind(dlg, selText))
     dlg.AddText("xm y+12 w470", T("scan_warn"))
     dlg.AddButton("xm y+10 w140 h30 Default", T("btn_start")).OnEvent("Click", StartScanFromDialog.Bind(dlg, radioSmart))
     dlg.Show()
+}
+
+; Стратегии Запрета обходят блокировки только для сайтов и адресов из его списков.
+; Если сервера игры там нет (IPSet Filter = none, нет playbsgo.com), ни одна стратегия не поможет —
+; предупреждаем и с согласия игрока исправляем. false = игрок решил не продолжать.
+CheckZapretLists() {
+    global ListsNote
+    ListsNote := ""
+    if (ZapretRoot = "")
+        return true
+    ip := Cfg("server", "game_ip", "")
+    if (ip = "")
+        ip := DnsSystem(GameHost())
+    cov := ListsCoverage(ip)
+    if !cov.hostListed {
+        if (MsgBox(Format(T("lists_no_host_q"), Host), T("app_title"), "YesNo Icon?") = "Yes") {
+            AddHostToUserList(Host)
+            cov.hostListed := true
+        }
+    }
+    if !cov.ipCovered {
+        canFix := cov.mode = "none" && FileExist(IpsetBackupPath())
+        msg := Format(T("lists_no_ip"), cov.mode, ip != "" ? ip : "?") "`n`n" (canFix ? T("lists_fix_ipset_q") : T("lists_ipset_howto"))
+        if canFix {
+            ans := MsgBox(msg, T("app_title"), "YesNoCancel Icon!")
+            if (ans = "Cancel")
+                return false
+            if (ans = "Yes") {
+                SetIpsetLoaded()
+                cov.ipCovered := true
+            }
+        } else if (MsgBox(msg "`n`n" T("lists_continue_q"), T("app_title"), "YesNo Icon!") != "Yes")
+            return false
+    }
+    if !cov.hostListed
+        ListsNote .= T("lists_note_host") "`r`n"
+    if !cov.ipCovered
+        ListsNote .= Format(T("lists_note_ip"), cov.mode) "`r`n"
+    return true
 }
 
 PickFromDialog(dlg, selText, *) => PickStrategies(dlg.Hwnd, RefreshSelText.Bind(selText))
@@ -184,6 +229,8 @@ StartScanFromDialog(dlg, radioSmart, *) {
         return
     }
     dlg.Destroy()
+    if !CheckZapretLists()
+        return
     Busy := true
     SetButtons(false)
     ResLV.Delete()
