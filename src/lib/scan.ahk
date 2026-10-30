@@ -280,6 +280,9 @@ ScanReportText(scan) {
         out .= T("warn") ": " T("chromium_ignored") nl
     else if !EdgeReliable
         out .= T("warn") ": " T("edge_unavailable") nl
+    for noteLine in StrSplit(RTrim(ListsNote, "`r`n"), "`n", "`r")
+        if (noteLine != "")
+            out .= T("warn") ": " noteLine nl
     if !CurlReliable
         out .= T("warn") ": " T("curl_unavailable") nl
     if (IsElectron && !NodeReliable)

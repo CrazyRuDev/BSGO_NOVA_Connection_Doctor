@@ -100,6 +100,9 @@ DiagReportText(d) {
     out .= T("zapret") ": " (ZapretRoot != "" ? ZapretRoot : T("not_found")) ",  " T("state_before") ": " d.zapretText nl
     if !d.edgeOk
         out .= T("warn") ": " T("edge_unavailable") nl
+    for noteLine in StrSplit(RTrim(ListsNote, "`r`n"), "`n", "`r")
+        if (noteLine != "")
+            out .= T("warn") ": " noteLine nl
     if !CurlReliable
         out .= T("warn") ": " T("curl_unavailable") nl
     if (IsElectron && !NodeReliable)

@@ -172,8 +172,19 @@ S("recommendation", "Рекомендация", "Recommendation")
 S("rec_confirm", "Это прогноз по сети. Подтвердите входом в игру — шаг 3.", "This is a network forecast. Confirm it in game — step 3.")
 S("rec_only_launcher", "Лаунчер заработает, но ни одна стратегия не обрабатывает игровые порты. Попробуйте Game Filter = TCP или добавьте порты {} в стратегию."
     , "The launcher will work, but no strategy handles the game ports. Try Game Filter = TCP or add ports {} to a strategy.")
-S("rec_none", "Ни одна стратегия не прошла загрузку. Возможно, нужен VPN или обновление списков Запрета."
-    , "No strategy passed the download test. You may need a VPN or updated Zapret lists.")
+S("rec_none", "Ни одна стратегия не прошла загрузку. Сначала проверьте списки Запрета: в service.bat пункт «IPSet Filter» должен быть [loaded] (если не переключается — сначала «Update IPSet List»), а в lists\list-general-user.txt должна быть строка playbsgo.com. Если всё так и не помогло — нужен VPN."
+    , "No strategy passed the download test. First check the Zapret lists: in service.bat “IPSet Filter” must be [loaded] (if it won't switch, run “Update IPSet List” first) and lists\list-general-user.txt must contain playbsgo.com. If that is all set and nothing helps, you need a VPN.")
+S("lists_no_host_q", "В списках сайтов Запрета нет «{}». Без него стратегии не будут обходить блокировку для лаунчера игры.`n`nДобавить его в lists\list-general-user.txt?"
+    , "“{}” is not in Zapret's site lists. Without it, strategies won't bypass blocking for the game launcher.`n`nAdd it to lists\list-general-user.txt?")
+S("lists_no_ip", "IPSet Filter в Запрете: [{}]. Сервер игры ({}) не входит в список адресов Запрета — правила Game Filter не будут работать для игры, и подбор стратегий почти наверняка ничего не найдёт."
+    , "Zapret's IPSet Filter: [{}]. The game server ({}) is not in Zapret's address list — Game Filter rules won't apply to the game, and the strategy search will almost certainly find nothing.")
+S("lists_fix_ipset_q", "Переключить IPSet Filter в [loaded]? (То же самое делает service.bat; запущенную стратегию потом нужно перезапустить.)`n`nДа — переключить и продолжить. Нет — продолжить без изменений. Отмена — не начинать проверку."
+    , "Switch IPSet Filter to [loaded]? (service.bat does the same; restart a running strategy afterwards.)`n`nYes — switch and continue. No — continue unchanged. Cancel — don't start the check.")
+S("lists_ipset_howto", "Как исправить: откройте service.bat → «Update IPSet List», затем пункт «IPSet Filter» — нажимайте, пока не появится [loaded]."
+    , "How to fix: open service.bat → “Update IPSet List”, then the “IPSet Filter” item — press it until it shows [loaded].")
+S("lists_continue_q", "Продолжить проверку всё равно?", "Continue the check anyway?")
+S("lists_note_host", "playbsgo.com нет в списках сайтов Запрета — стратегии не обходят блокировку для лаунчера.", "playbsgo.com is not in Zapret's site lists — strategies don't bypass blocking for the launcher.")
+S("lists_note_ip", "IPSet Filter [{}]: сервера игры нет в списке адресов Запрета — Game Filter не работает для игры.", "IPSet Filter [{}]: the game server is not in Zapret's address list — Game Filter does not apply to the game.")
 S("report_prefix_scan", "подбор", "search")
 
 ; ---------- шаг 3: проверка в игре ----------

@@ -20,9 +20,12 @@ LoadGame() {
     if !FileExist(GameExe)
         GameExe := FindGameExe(LauncherExe)
     UpdateGameDerived()
+    ; найденное автоматически запоминаем — в следующий раз искать не придётся
+    if (FileExist(LauncherExe) && FileExist(GameExe))
+        SaveGame()
 }
 
-; запущенный лаунчер Nova → стандартная папка Nova → пусто (тогда игрок выберет сам)
+; запущенный лаунчер Nova → запись установщика в реестре → стандартные папки → поиск по дискам → пусто
 DetectLauncher() {
     try {
         for proc in ComObjGet("winmgmts:").ExecQuery("SELECT ExecutablePath FROM Win32_Process WHERE Name='BSGO Launcher.exe'") {
@@ -31,10 +34,51 @@ DetectLauncher() {
                 return path
         }
     }
+    path := LauncherFromRegistry()
+    if (path != "")
+        return path
     for cand in ["C:\Games\bsgo nova\BSGO Launcher\BSGO Launcher.exe", A_ProgramFiles "\BSGO Launcher\BSGO Launcher.exe"
         , EnvGet("LOCALAPPDATA") "\Programs\bsgo-launcher\BSGO Launcher.exe"]
         if FileExist(cand)
             return cand
+    return LauncherOnDrives()
+}
+
+; установщик Nova регистрирует «BSGO Launcher <версия>» в разделе удаления программ
+; (BSGO.EU Launcher и другие серверы — не наши, их пропускаем)
+LauncherFromRegistry() {
+    for root in ["HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall"
+        , "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"
+        , "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"] {
+        try {
+            loop reg, root, "K" {
+                key := root "\" A_LoopRegName
+                if !RegExMatch(RegRead(key, "DisplayName", ""), "i)^BSGO Launcher\b")
+                    continue
+                dir := RegRead(key, "InstallLocation", "")
+                if (dir = "" && RegExMatch(RegRead(key, "UninstallString", ""), 'i)^"?(.*)\\[^\\]+\.exe', &m))
+                    dir := m[1]
+                if FileExist(dir "\BSGO Launcher.exe")
+                    return dir "\BSGO Launcher.exe"
+            }
+        }
+    }
+    return ""
+}
+
+; X:\<папка>\BSGO Launcher.exe и X:\<папка>\<папка>\BSGO Launcher.exe на всех локальных дисках
+LauncherOnDrives() {
+    for letter in StrSplit(DriveGetList("FIXED")) {
+        loop files, letter ":\*", "D" {
+            if (A_LoopFileName = "Windows")
+                continue
+            if FileExist(A_LoopFileFullPath "\BSGO Launcher.exe")
+                return A_LoopFileFullPath "\BSGO Launcher.exe"
+            loop files, A_LoopFileFullPath "\*", "D"
+                if FileExist(A_LoopFileFullPath "\BSGO Launcher.exe")
+                    return A_LoopFileFullPath "\BSGO Launcher.exe"
+        }
+    }
     return ""
 }
 

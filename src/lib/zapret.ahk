@@ -154,6 +154,87 @@ WriteGf(mode, settings) {
 ModeLabel(mode) => mode = "tcp" ? "TCP" : mode = "disabled" ? T("gf_off") : mode
 
 ; ==========================================================================
+;  Списки Запрета: покрывают ли они сервер игры
+;  Правила стратегий срабатывают только для сайтов из lists\list-general*.txt и адресов из lists\ipset-all.txt.
+;  Режим IPSet Filter service.bat определяет так: файл пустой → any, заглушка 203.0.113.113/32 → none,
+;  иначе loaded (настоящий список при режиме none лежит в ipset-all.txt.backup).
+; ==========================================================================
+
+IpsetPath() => ZapretRoot "\lists\ipset-all.txt"
+IpsetBackupPath() => IpsetPath() ".backup"
+
+IpsetMode() {
+    if !FileExist(IpsetPath())
+        return "none"
+    txt := Trim(FileRead(IpsetPath()), " `r`n`t")
+    if (txt = "")
+        return "any"
+    return InStr(txt, "203.0.113.113/32") ? "none" : "loaded"
+}
+
+; {mode, ipCovered, hostListed}
+ListsCoverage(ip) {
+    mode := IpsetMode()
+    ipCovered := mode = "any" || (mode = "loaded" && ip != "" && IpInCidrFile(ip, IpsetPath()))
+    return {mode: mode, ipCovered: ipCovered, hostListed: HostListed(Host)}
+}
+
+; есть ли домен (или домен, в который он входит) в списках сайтов Запрета
+HostListed(name) {
+    for file in [ZapretRoot "\lists\list-general.txt", ZapretRoot "\lists\list-general-user.txt"] {
+        if !FileExist(file)
+            continue
+        for ln in StrSplit(FileRead(file), "`n", "`r `t") {
+            if (ln = "" || SubStr(ln, 1, 1) = "#")
+                continue
+            if (ln = name || (StrLen(name) > StrLen(ln) && SubStr(name, -(StrLen(ln) + 1)) = "." ln))
+                return true
+        }
+    }
+    return false
+}
+
+IpToNum(ip) {
+    p := StrSplit(ip, ".")
+    if (p.Length != 4)
+        return -1
+    for v in p
+        if !IsInteger(v)
+            return -1
+    return (Integer(p[1]) << 24) | (Integer(p[2]) << 16) | (Integer(p[3]) << 8) | Integer(p[4])
+}
+
+IpInCidrFile(ip, file) {
+    target := IpToNum(ip)
+    if (target < 0)
+        return false
+    for ln in StrSplit(FileRead(file), "`n", "`r `t") {
+        if !RegExMatch(ln, "^(\d{1,3}(?:\.\d{1,3}){3})(?:/(\d{1,2}))?$", &m)
+            continue
+        bits := m[2] != "" ? Integer(m[2]) : 32
+        mask := bits = 0 ? 0 : (0xFFFFFFFF << (32 - bits)) & 0xFFFFFFFF
+        if ((IpToNum(m[1]) & mask) = (target & mask))
+            return true
+    }
+    return false
+}
+
+AddHostToUserList(name) {
+    file := ZapretRoot "\lists\list-general-user.txt"
+    prefix := (FileExist(file) && !RegExMatch(FileRead(file), "(\r?\n|^)$")) ? "`r`n" : ""
+    FileAppend(prefix name "`r`n", file, "UTF-8-RAW")
+}
+
+; то же, что service.bat делает при переключении на loaded: вернуть настоящий список из .backup
+SetIpsetLoaded() {
+    if !FileExist(IpsetBackupPath())
+        return false
+    FileDelete(IpsetPath())
+    FileMove(IpsetBackupPath(), IpsetPath())
+    return true
+}
+
+; ==========================================================================
 ;  Сохранение и восстановление состояния Запрета
 ; ==========================================================================
 
